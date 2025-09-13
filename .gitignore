@@ -1,0 +1,17 @@
+# STM32CubeIDE build files
+Debug/
+Release/
+build/
+
+# STM32CubeIDE settings
+.settings/
+.mxproject
+
+# Other common files to ignore
+*.o
+*.elf
+*.bin
+*.map
+*.suo
+*.user
+*.bak
