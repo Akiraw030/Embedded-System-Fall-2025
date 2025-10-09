@@ -16,10 +16,28 @@ cd ./Documents
 Build the following repo in rpi
 https://github.com/labapart/gattlib
 
-nano ble_cccd_writer.c
+nano ble_notify_test.c
 copy the code inside
 and then X and then Y and then Enter
 
-gcc ble_cccd_writer.c -o ble_cccd_writer -lgattlib -lpthread
+gcc -o ble_notify_test ble_notify_test.c $(pkg-config --cflags --libs gattlib) -lpthread
 
-sudo ./ble_cccd_writer
+open another terminal
+sudo bluetoothctl
+[bluetooth]# agent on
+[bluetooth]# default-agent
+
+in original terminal
+sudo ./ble_notify_test
+
+in another terminal
+look for a passkey and enter in on your phone
+
+change the charasteristic value to test
+
+Note: If you connected once, you should before next run of sudo ./ble_notify_test
+[bluetooth]# devices
+[bluetooth]# remove (the device address you just connected)
+sudo systemctl restart bluetooth
+
+

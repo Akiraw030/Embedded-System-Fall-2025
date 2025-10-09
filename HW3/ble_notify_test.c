@@ -24,9 +24,9 @@
 
 //-- Configuration: Set your device's details here
 #define TARGET_DEVICE_NAME      "realme GT Neo2 5G"
-#define TARGET_CHAR_UUID        "fff0"   // The characteristic to enable indications on
-#define BLE_SCAN_TIMEOUT        20       // Scan for 20 seconds
-#define PAIRING_WAIT_SECONDS    15       // ** NEW: Time to wait for PIN entry **
+#define TARGET_CHAR_UUID        "fff0"      // The characteristic to enable indications on
+#define BLE_SCAN_TIMEOUT        20          // Scan for 20 seconds
+#define PAIRING_WAIT_SECONDS    15          // ** NEW: Time to wait for PIN entry **
 //--
 
 // Global variables for thread synchronization and state management
@@ -36,13 +36,35 @@ static gattlib_adapter_t* m_adapter;
 static int m_terminate = 0;
 
 /*
- * This callback is required for gattlib_indication_start,
- * but we don't need to do anything with the data for this specific task.
+ * 【修改】強化這個回呼函式，讓它能印出收到的具體資料
  */
 static void on_indication_received(const uuid_t* uuid, const uint8_t* data, size_t data_length, void* user_data) {
-    // This function will be called if the peripheral sends an indication.
-    printf("Indication received on UUID %s with %zu bytes.\n", TARGET_CHAR_UUID, data_length);
+    char uuid_str[MAX_LEN_UUID_STR + 1];
+    char buffer[data_length + 1];
+    int i;
+
+    // 將收到的 UUID 轉成字串
+    gattlib_uuid_to_string(uuid, uuid_str, sizeof(uuid_str));
+
+    printf("\n--- Notification/Indication Received ---\n");
+    printf("From UUID: %s\n", uuid_str);
+    printf("Data Length: %zu bytes\n", data_length);
+
+    // 1. 以十六進位 (Hex) 格式印出原始資料
+    printf("Raw Data (Hex): ");
+    for (i = 0; i < data_length; i++) {
+        printf("%02x ", data[i]);
+    }
+    printf("\n");
+
+    // 2. 嘗試以字串格式印出資料 (如果手機端傳送的是文字)
+    // 複製資料到新 buffer 並加上結尾符，確保安全
+    memcpy(buffer, data, data_length);
+    buffer[data_length] = '\0';
+    printf("Data (String): %s\n", buffer);
+    printf("--------------------------------------\n\n");
 }
+
 
 /*
  * Callback executed when the connection to the device is established.
@@ -54,6 +76,12 @@ static void on_device_connect(gattlib_adapter_t* adapter, const char *dst, gattl
     }
 
     printf("Successfully connected to %s\n", dst);
+
+    // 【新增】註冊 Notification/Indication 的回呼函式
+    // 這一步是告訴 gattlib 當有通知進來時，要去呼叫 on_indication_received
+    printf("Registering notification handler...\n");
+    gattlib_register_notification(connection, on_indication_received, NULL);
+    // 【新增結束】
 
     uuid_t characteristic_uuid;
     int ret;
@@ -69,14 +97,15 @@ static void on_device_connect(gattlib_adapter_t* adapter, const char *dst, gattl
 
     // ** CLARIFICATION: gattlib_indication_start() correctly writes 0x0002 to the CCCD. **
     // The alternative, gattlib_notification_start(), would write 0x0001.
-    ret = gattlib_indication_start(connection, &characteristic_uuid);
+    ret = gattlib_notification_start(connection, &characteristic_uuid);
 
     if (ret == GATTLIB_SUCCESS) {
         printf("SUCCESS: Indications enabled. CCCD value is now 0x0002.\n");
-        
+        printf("The device is now listening for value changes from the server.\n");
+
         // ** NEW: Wait for a few seconds to allow time for pairing/PIN entry on the phone. **
-        printf("Waiting for %d seconds to allow for pairing...\n", PAIRING_WAIT_SECONDS);
-        printf("Please check your phone now for any pairing requests.\n");
+        printf("Waiting for %d seconds to allow for pairing or testing...\n", PAIRING_WAIT_SECONDS);
+        printf(">>> Please change the characteristic value on your phone now! <<<\n");
         sleep(PAIRING_WAIT_SECONDS);
         printf("Wait time finished.\n");
 
@@ -114,10 +143,10 @@ static void ble_discovered_device(gattlib_adapter_t* adapter, const char* addr, 
         gattlib_adapter_scan_disable(adapter);
 
         printf("Connecting to %s...\n", name);
-        int ret = gattlib_connect(adapter, addr, GATTLIB_CONNECTION_OPTIONS_NONE, on_device_connect, NULL);
+        int ret = gattlib_connect(adapter, addr, GATTLIB_CONNECTION_OPTIONS_LEGACY_BT_SEC_MEDIUM, on_device_connect, NULL);
         if (ret != GATTLIB_SUCCESS) {
             fprintf(stderr, "ERROR: Failed to initiate connection to '%s'.\n", addr);
-            
+
             pthread_mutex_lock(&m_connection_terminated_lock);
             m_terminate = 1;
             pthread_cond_signal(&m_connection_terminated);
@@ -160,4 +189,3 @@ int main(int argc, char *argv[]) {
     printf("Program finished.\n");
     return 0;
 }
-
