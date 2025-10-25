@@ -61,7 +61,15 @@ const osThreadAttr_t defaultTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
+// --- Static Memory for TASK_BLE ---
+#define TASK_BLE_STACK_SIZE_WORDS (1024 * 8 / sizeof(StackType_t)) // Calculate words (adjust size if needed)
+StackType_t TaskBleStack[TASK_BLE_STACK_SIZE_WORDS];
+StaticTask_t TaskBleTCB; // Task Control Block
 
+// --- Static Memory for TASK_ACC ---
+#define TASK_ACC_STACK_SIZE_WORDS (512 * 8 / sizeof(StackType_t)) // Calculate words (adjust size if needed)
+StackType_t TaskAccStack[TASK_ACC_STACK_SIZE_WORDS];
+StaticTask_t TaskAccTCB; // Task Control Block
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -114,7 +122,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DFSDM1_Init();
-  MX_I2C2_Init();
+  //MX_I2C2_Init();
   MX_QUADSPI_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
@@ -126,28 +134,7 @@ int main(void)
   // ----------------------------
 
   Set_DeviceConnectable();
-    /* Definitions for TASK_BLE */
-    const osThreadAttr_t TASK_BLE_attributes = {
-      .name = "TASK_BLE",
-      .stack_size = 1024 * 4,
-      .priority = (osPriority_t) osPriorityHigh,
-    };
-    osThreadId_t taskBleId = osThreadNew(TASK_BLE, NULL, &TASK_BLE_attributes);
-      if (taskBleId == NULL) {
-          printf("!!! ERROR: Failed to create TASK_BLE !!!\n");
-          // You might want to halt here or blink an LED rapidly
-          Error_Handler();
-      } else {
-          printf("--- TASK_BLE creation requested successfully ---\n");
-      }
 
-    /* Definitions for TASK_ACC */
-    const osThreadAttr_t TASK_ACC_attributes = {
-      .name = "TASK_ACC",
-      .stack_size = 512 * 4,
-      .priority = (osPriority_t) osPriorityNormal,
-    };
-    osThreadNew(TASK_ACC, NULL, &TASK_ACC_attributes);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -172,6 +159,44 @@ int main(void)
   /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* Definitions for TASK_BLE */
+      const osThreadAttr_t TASK_BLE_attributes = {
+        .name = "TASK_BLE",
+        // .stack_size = 1024 * 8, // No longer needed when using stack_mem
+        .priority = (osPriority_t) osPriorityNormal,
+        .stack_mem = TaskBleStack,        // <-- ADD: Pointer to the stack buffer
+        .stack_size = sizeof(TaskBleStack), // <-- ADD: Size of the buffer in bytes
+        .cb_mem = &TaskBleTCB,            // <-- ADD: Pointer to the TCB buffer
+        .cb_size = sizeof(TaskBleTCB)     // <-- ADD: Size of the TCB buffer
+      };
+      osThreadId_t taskBleId = osThreadNew(TASK_BLE, NULL, &TASK_BLE_attributes);
+        if (taskBleId == NULL) {
+            printf("!!! ERROR: Failed to create TASK_BLE (Static) !!!\n");
+            Error_Handler();
+        } else {
+            printf("--- TASK_BLE (Static) creation requested successfully ---\n");
+        }
+
+        /* Definitions for TASK_ACC */
+          const osThreadAttr_t TASK_ACC_attributes = {
+            .name = "TASK_ACC",
+            // .stack_size = 512 * 8, // No longer needed
+            .priority = (osPriority_t) osPriorityNormal,
+            .stack_mem = TaskAccStack,        // <-- ADD
+            .stack_size = sizeof(TaskAccStack), // <-- ADD
+            .cb_mem = &TaskAccTCB,            // <-- ADD
+            .cb_size = sizeof(TaskAccTCB)     // <-- ADD
+          };
+          osThreadId_t taskAccId = osThreadNew(TASK_ACC, NULL, &TASK_ACC_attributes);
+           if (taskAccId == NULL) {
+              printf("!!! ERROR: Failed to create TASK_ACC (Static) !!!\n");
+              Error_Handler();
+          } else {
+              printf("--- TASK_ACC (Static) creation requested successfully ---\n");
+          }
+
+           printf("--- Starting RTOS Kernel ---\n");
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */

@@ -1,23 +1,3 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file    b_l475e_iot01a1.h
-  * @author  MCD Application Team (Modified)
-  * @brief   header file for the BSP Common driver
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-*/
-/* USER CODE END Header */
-
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __B_L475E_IOT01A1_H
 #define __B_L475E_IOT01A1_H
@@ -29,41 +9,35 @@
 /* Includes ------------------------------------------------------------------*/
 #include "b_l475e_iot01a1_conf.h"
 #include "b_l475e_iot01a1_errno.h"
-#include "main.h" /* For HAL_Delay */
-
-/* Include I2C HAL driver */
-#include "stm32l4xx_hal_i2c.h"
+#include "main.h" // For HAL_Delay
+#include "stm32l4xx_hal_i2c.h" // Include I2C HAL driver
 
 #if (USE_BSP_COM_FEATURE > 0)
   #if (USE_COM_LOG > 0)
-    #if defined(__ICCARM__) || defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)) /* For IAR and ARM Compiler 5 and 6*/
+    #if defined(__ICCARM__) || defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
       #include <stdio.h>
     #endif
   #endif
 #endif
-
 /** @addtogroup BSP
  * @{
  */
 
-/** @addtogroup B_L475E_IOT01A1
+/** @defgroup B_L475E_IOT01A1
  * @{
  */
 
-/** @addtogroup B_L475E_IOT01A1_LOW_LEVEL
+/** @defgroup B_L475E_IOT01A1_LOW_LEVEL
  * @{
  */
 
 /** @defgroup B_L475E_IOT01A1_LOW_LEVEL_Exported_Constants LOW LEVEL Exported Constants
   * @{
   */
-/**
- * @brief STM32L4XX NUCLEO BSP Driver version number V1.0.0
- */
-#define __B_L475E_IOT01A1_BSP_VERSION_MAIN   (uint32_t)(0x01) /*!< [31:24] main version */
-#define __B_L475E_IOT01A1_BSP_VERSION_SUB1   (uint32_t)(0x01) /*!< [23:16] sub1 version */
-#define __B_L475E_IOT01A1_BSP_VERSION_SUB2   (uint32_t)(0x08) /*!< [15:8]  sub2 version */
-#define __B_L475E_IOT01A1_BSP_VERSION_RC     (uint32_t)(0x00) /*!< [7:0]  release candidate */
+#define __B_L475E_IOT01A1_BSP_VERSION_MAIN   (uint32_t)(0x01)
+#define __B_L475E_IOT01A1_BSP_VERSION_SUB1   (uint32_t)(0x01)
+#define __B_L475E_IOT01A1_BSP_VERSION_SUB2   (uint32_t)(0x08)
+#define __B_L475E_IOT01A1_BSP_VERSION_RC     (uint32_t)(0x00)
 #define __B_L475E_IOT01A1_BSP_VERSION        ((__B_L475E_IOT01A1_BSP_VERSION_MAIN << 24)\
                                                     |(__B_L475E_IOT01A1_BSP_VERSION_SUB1 << 16)\
                                                     |(__B_L475E_IOT01A1_BSP_VERSION_SUB2 << 8 )\
@@ -72,35 +46,27 @@
 /** @defgroup B_L475E_IOT01A1_LOW_LEVEL_Exported_Types B_L475E_IOT01A1 LOW LEVEL Exported Types
  * @{
  */
-
- /**
-  * @brief Define for B_L475E_IOT01A1 board
-  */
 #if !defined (USE_B_L475E_IOT01A1)
  #define USE_B_L475E_IOT01A1
 #endif
-
 #ifndef USE_BSP_COM_FEATURE
-   #define USE_BSP_COM_FEATURE                  1U // Enable COM feature by default if not defined
+   #define USE_BSP_COM_FEATURE                  1U
 #endif
 
 /** @defgroup B_L475E_IOT01A1_LOW_LEVEL_LED B_L475E_IOT01A1 LOW LEVEL LED
  * @{
  */
-/** Define number of LED            **/
 #define LEDn                              1U
-/** Definition for BSP USER LED 2 (PB14)  **/
 #define LED2_PIN                          GPIO_PIN_14
 #define LED2_GPIO_PORT                    GPIOB
 #define LED2_GPIO_CLK_ENABLE()            __HAL_RCC_GPIOB_CLK_ENABLE()
 #define LED2_GPIO_CLK_DISABLE()           __HAL_RCC_GPIOB_CLK_DISABLE()
 
-// Keep definitions consistent if CubeMX generated these
-#define BUS_GPIO_INSTANCE GPIO // Assuming GPIO is the instance name used in conf file
-#define BUS_BSP_LED_GPIO_PORT             LED2_GPIO_PORT
-#define BUS_BSP_LED_GPIO_PIN              LED2_PIN
-#define BUS_BSP_LED_GPIO_CLK_ENABLE()     LED2_GPIO_CLK_ENABLE()
-#define BUS_BSP_LED_GPIO_CLK_DISABLE()    LED2_GPIO_CLK_DISABLE()
+#define BUS_GPIO_INSTANCE GPIO
+#define BUS_BSP_LED_GPIO_CLK_ENABLE() __HAL_RCC_GPIOB_CLK_ENABLE()
+#define BUS_BSP_LED_GPIO_PORT GPIOB
+#define BUS_BSP_LED_GPIO_CLK_DISABLE() __HAL_RCC_GPIOB_CLK_DISABLE()
+#define BUS_BSP_LED_GPIO_PIN GPIO_PIN_14
 
 typedef enum
 {
@@ -114,56 +80,43 @@ typedef enum
 /** @defgroup B_L475E_IOT01A1_LOW_LEVEL_BUTTON B_L475E_IOT01A1 LOW LEVEL BUTTON
  * @{
  */
-/* Button state */
 #define BUTTON_RELEASED                   0U
 #define BUTTON_PRESSED                    1U
-/** Define number of BUTTON            **/
 #define BUTTONn                           1U
 
-/**
- * @brief User push-button (PC13)
- */
-#define USER_BUTTON_PIN                   GPIO_PIN_13
-#define USER_BUTTON_GPIO_PORT             GPIOC
-#define USER_BUTTON_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOC_CLK_ENABLE()
-#define USER_BUTTON_GPIO_CLK_DISABLE()    __HAL_RCC_GPIOC_CLK_DISABLE()
-#define USER_BUTTON_EXTI_IRQn             EXTI15_10_IRQn
-#define USER_BUTTON_EXTI_LINE             EXTI_LINE_13
-// Keep definitions consistent if CubeMX generated these
-#define BUS_BSP_BUTTON_GPIO_PORT          USER_BUTTON_GPIO_PORT
-#define BUS_BSP_BUTTON_GPIO_PIN           USER_BUTTON_PIN
-#define BUS_BSP_BUTTON_GPIO_CLK_ENABLE()  USER_BUTTON_GPIO_CLK_ENABLE()
-#define BUS_BSP_BUTTON_GPIO_CLK_DISABLE() USER_BUTTON_GPIO_CLK_DISABLE()
+#define BUS_GPIO_INSTANCE GPIO
+#define BUS_BSP_BUTTON_GPIO_CLK_ENABLE() __HAL_RCC_GPIOC_CLK_ENABLE()
+#define BUS_BSP_BUTTON_GPIO_PIN GPIO_PIN_13
+#define BUS_BSP_BUTTON_GPIO_CLK_DISABLE() __HAL_RCC_GPIOC_CLK_DISABLE()
+#define BUS_BSP_BUTTON_GPIO_PORT GPIOC
 
-#define H_EXTI_13                         hpb_exti[BUTTON_USER]
+#define USER_BUTTON_PIN                   GPIO_PIN_13
+#define USER_BUTTON_GPIO_PORT              GPIOC
+#define USER_BUTTON_EXTI_IRQn              EXTI15_10_IRQn
+#define USER_BUTTON_EXTI_LINE              EXTI_LINE_13
+#define H_EXTI_13             hpb_exti[BUTTON_USER]
 
 typedef enum
 {
   BUTTON_USER = 0U,
-  /* Keep compatibility */
-  BUTTON_KEY = BUTTON_USER
-} Button_TypeDef;
+}Button_TypeDef;
+#define BUTTON_KEY BUTTON_USER
 
 typedef enum
 {
   BUTTON_MODE_GPIO = 0,
   BUTTON_MODE_EXTI = 1
 } ButtonMode_TypeDef;
-
 #ifndef BSP_BUTTON_USER_IT_PRIORITY
   #define BSP_BUTTON_USER_IT_PRIORITY            15U
 #endif
 /**
  * @}
  */
-
 /** @defgroup B_L475E_IOT01A1_LOW_LEVEL_COM B_L475E_IOT01A1 LOW LEVEL COM
  * @{
  */
 #if (USE_BSP_COM_FEATURE > 0)
-/**
- * @brief Definition for COM port1, connected to USART1 (PB6/PB7)
- */
 #define COMn                             1U
 #define COM1_UART                        USART1
 #define COM1_CLK_ENABLE()                __HAL_RCC_USART1_CLK_ENABLE()
@@ -181,18 +134,17 @@ typedef enum
 #define COM1_RX_GPIO_CLK_DISABLE()       __HAL_RCC_GPIOB_CLK_DISABLE()
 #define COM1_RX_AF                       GPIO_AF7_USART1
 
-// Keep definitions consistent if CubeMX generated these
-#define BUS_USART1_INSTANCE               COM1_UART
-#define BUS_USART1_TX_GPIO_PIN            COM1_TX_PIN
-#define BUS_USART1_TX_GPIO_PORT           COM1_TX_GPIO_PORT
-#define BUS_USART1_TX_GPIO_CLK_ENABLE()   COM1_TX_GPIO_CLK_ENABLE()
-#define BUS_USART1_TX_GPIO_CLK_DISABLE()  COM1_TX_GPIO_CLK_DISABLE()
-#define BUS_USART1_TX_GPIO_AF             COM1_TX_AF
-#define BUS_USART1_RX_GPIO_PIN            COM1_RX_PIN
-#define BUS_USART1_RX_GPIO_PORT           COM1_RX_GPIO_PORT
-#define BUS_USART1_RX_GPIO_CLK_ENABLE()   COM1_RX_GPIO_CLK_ENABLE()
-#define BUS_USART1_RX_GPIO_CLK_DISABLE()  COM1_RX_GPIO_CLK_DISABLE()
-#define BUS_USART1_RX_GPIO_AF             COM1_RX_AF
+#define BUS_USART1_INSTANCE USART1
+#define BUS_USART1_TX_GPIO_PIN GPIO_PIN_6
+#define BUS_USART1_TX_GPIO_PORT GPIOB
+#define BUS_USART1_TX_GPIO_CLK_ENABLE() __HAL_RCC_GPIOB_CLK_ENABLE()
+#define BUS_USART1_TX_GPIO_CLK_DISABLE() __HAL_RCC_GPIOB_CLK_DISABLE()
+#define BUS_USART1_TX_GPIO_AF GPIO_AF7_USART1
+#define BUS_USART1_RX_GPIO_CLK_ENABLE() __HAL_RCC_GPIOB_CLK_ENABLE()
+#define BUS_USART1_RX_GPIO_PORT GPIOB
+#define BUS_USART1_RX_GPIO_CLK_DISABLE() __HAL_RCC_GPIOB_CLK_DISABLE()
+#define BUS_USART1_RX_GPIO_PIN GPIO_PIN_7
+#define BUS_USART1_RX_GPIO_AF GPIO_AF7_USART1
 
 #define COM_POLL_TIMEOUT                 1000
 
@@ -201,32 +153,10 @@ typedef enum
   COM1 = 0U
 }COM_TypeDef;
 
-typedef enum
-{
- COM_WORDLENGTH_8B     =   UART_WORDLENGTH_8B,
- COM_WORDLENGTH_9B     =   UART_WORDLENGTH_9B,
-}COM_WordLengthTypeDef;
-
-typedef enum
-{
- COM_STOPBITS_1     =   UART_STOPBITS_1,
- COM_STOPBITS_2     =   UART_STOPBITS_2,
-}COM_StopBitsTypeDef;
-
-typedef enum
-{
- COM_PARITY_NONE     =  UART_PARITY_NONE,
- COM_PARITY_EVEN     =  UART_PARITY_EVEN,
- COM_PARITY_ODD      =  UART_PARITY_ODD,
-}COM_ParityTypeDef;
-
-typedef enum
-{
- COM_HWCONTROL_NONE    =  UART_HWCONTROL_NONE,
- COM_HWCONTROL_RTS     =  UART_HWCONTROL_RTS,
- COM_HWCONTROL_CTS     =  UART_HWCONTROL_CTS,
- COM_HWCONTROL_RTS_CTS =  UART_HWCONTROL_RTS_CTS,
-}COM_HwFlowCtlTypeDef;
+typedef enum { COM_WORDLENGTH_8B = UART_WORDLENGTH_8B, COM_WORDLENGTH_9B = UART_WORDLENGTH_9B } COM_WordLengthTypeDef;
+typedef enum { COM_STOPBITS_1 = UART_STOPBITS_1, COM_STOPBITS_2 = UART_STOPBITS_2 } COM_StopBitsTypeDef;
+typedef enum { COM_PARITY_NONE = UART_PARITY_NONE, COM_PARITY_EVEN = UART_PARITY_EVEN, COM_PARITY_ODD = UART_PARITY_ODD } COM_ParityTypeDef;
+typedef enum { COM_HWCONTROL_NONE = UART_HWCONTROL_NONE, COM_HWCONTROL_RTS = UART_HWCONTROL_RTS, COM_HWCONTROL_CTS = UART_HWCONTROL_CTS, COM_HWCONTROL_RTS_CTS = UART_HWCONTROL_RTS_CTS } COM_HwFlowCtlTypeDef;
 
 typedef struct
 {
@@ -248,7 +178,7 @@ typedef struct
 #endif /* (USE_HAL_UART_REGISTER_CALLBACKS == 1U) */
 
 extern UART_HandleTypeDef hcom_uart[COMn];
-#define huart1 hcom_uart[COM1] // Use huart1 for consistency if defined elsewhere
+#define huart1 hcom_uart[COM1]
 
 #endif /* (USE_BSP_COM_FEATURE > 0) */
 
@@ -284,13 +214,8 @@ extern UART_HandleTypeDef hcom_uart[COMn];
 
 #define BUS_I2C2_EV_IRQn                  I2C2_EV_IRQn
 #define BUS_I2C2_ER_IRQn                  I2C2_ER_IRQn
-
-/* I2C TIMING Register define when I2C clock source is SYSCLK (SYSCLK = 80MHz) */
-/* Calculated with CubeMX, Fast Mode @400kHz, Rise Time = 100ns, Fall Time = 10ns */
-#define BUS_I2C2_TIMING                   0x00D00E28
-
-/* I2C Maximum Timeout values for blocking mode based functions */
-#define BUS_I2C2_TIMEOUT_MAX              0x3000 /*<! The value of the maximal timeout for BUS waiting loops */
+#define BUS_I2C2_TIMING                   0x00000E14 // Timing for 400kHz @80MHz (check if SystemClock is 80MHz)
+#define BUS_I2C2_TIMEOUT_MAX              0x3000
 
 /**
   * @}
@@ -300,7 +225,7 @@ extern UART_HandleTypeDef hcom_uart[COMn];
   * @{
   */
 extern EXTI_HandleTypeDef hpb_exti[BUTTONn];
-extern I2C_HandleTypeDef hI2cHandler; // Declare I2C Handle
+extern I2C_HandleTypeDef hI2cHandler;
 /**
   * @}
   */
@@ -332,29 +257,23 @@ int32_t  BSP_COM_SelectLogPort(COM_TypeDef COM);
 #if (USE_HAL_UART_REGISTER_CALLBACKS == 1U)
 int32_t BSP_COM_RegisterDefaultMspCallbacks(COM_TypeDef COM);
 int32_t BSP_COM_RegisterMspCallbacks(COM_TypeDef COM , BSP_COM_Cb_t *Callback);
-#endif /* USE_HAL_UART_REGISTER_CALLBACKS */
-HAL_StatusTypeDef MX_USART1_UART_Init(UART_HandleTypeDef* huart); // Keep if used by CubeMX generated code
-#endif /* (USE_BSP_COM_FEATURE > 0) */
+#endif
+HAL_StatusTypeDef MX_USART1_UART_Init(UART_HandleTypeDef* huart);
+#endif
 
-/* Sensor IO functions */
+/* Sensor IO functions (From Reference File) */
 void    SENSOR_IO_Init(void);
 void    SENSOR_IO_DeInit(void);
 void    SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value);
 uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg);
+// --- FIX: Change return type to uint16_t to match lsm6dsl.h ---
 uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length);
+// ----------------------------------------------------------------
 void    SENSOR_IO_WriteMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length);
 HAL_StatusTypeDef SENSOR_IO_IsDeviceReady(uint16_t DevAddress, uint32_t Trials);
-void    SENSOR_IO_Delay(uint32_t Delay); // Use HAL_Delay directly if preferred
-
-/* NFC IO functions (If needed, copy declarations from reference .h) */
-// void     NFC_IO_Init(uint8_t GpoIrqEnable);
-// void     NFC_IO_DeInit(void);
-// uint16_t NFC_IO_ReadMultiple (uint8_t Addr, uint8_t *pBuffer, uint16_t Length );
-// uint16_t NFC_IO_WriteMultiple (uint8_t Addr, uint8_t *pBuffer, uint16_t Length);
-// uint16_t NFC_IO_IsDeviceReady (uint8_t Addr, uint32_t Trials);
-// void     NFC_IO_ReadState(uint8_t * pPinState);
-// void     NFC_IO_RfDisable(uint8_t PinState);
-// void     NFC_IO_Delay(uint32_t Delay);
+void    SENSOR_IO_Delay(uint32_t Delay);
+/* NFC IO functions (If needed) */
+// (Declarations omitted for clarity)
 
 /**
  * @}

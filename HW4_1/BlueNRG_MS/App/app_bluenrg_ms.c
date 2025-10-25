@@ -41,6 +41,17 @@
 #include "cmsis_os.h"               // <-- ADD THIS (for osDelay)
 #include "bluenrg_gatt_aci.h"       // <-- ADD THIS (for GATT_SERVER_ATTR_WRITE)
 #include "lsm6dsl.h"                // <-- ADD THIS (for LSM6DSL_OK)
+
+#define LSM6DSL_ACC_GYRO_XLDA_MASK       (0x01)
+
+// These are likely already defined in lsm6dsl.h, but we set fallbacks
+#ifndef LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW
+#define LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW (0xD4) // 8-bit I2C Address
+#define LSM6DSL_ACC_GYRO_WHO_AM_I_REG    (0x0F)
+#define LSM6DSL_ACC_GYRO_CTRL1_XL        (0x10)
+#define LSM6DSL_ACC_GYRO_STATUS_REG      (0x1E)
+#define LSM6DSL_ODR_52Hz                 (0x30)
+#endif
 /* USER CODE END Includes */
 
 /* Private defines -----------------------------------------------------------*/
@@ -147,7 +158,7 @@ void MX_BlueNRG_MS_Init(void)
    * command after reset otherwise it will fail.
    */
   hci_reset();
-  HAL_Delay(100);
+  HAL_Delay(500);
 
   PRINTF("HWver %d\nFWver %d\n", hwVersion, fwVersion);
   if (hwVersion > 0x30) { /* X-NUCLEO-IDB05A1 expansion board is used */
@@ -493,7 +504,7 @@ void TASK_BLE(void *argument)
   {
     // PRINTF("TASK_BLE: Loop running, calling hci_user_evt_proc...\n"); // Uncomment if needed
     hci_user_evt_proc(); // This processes events & calls user_notify
-    osDelay(10); // Small delay to yield CPU
+    osDelay(1); // Small delay to yield CPU
   }
 }
 
@@ -504,31 +515,66 @@ void TASK_BLE(void *argument)
  */
 void TASK_ACC(void *argument)
 {
-  PRINTF("--- TASK_ACC Started ---\n");
-  int16_t acc_data[3] = {0};  // Buffer for raw sensor data (x, y, z)
-  uint8_t aNotifyBuffer[6]; // Buffer to send over BLE (2 bytes * 3 axes)
+  //PRINTF("--- TASK_ACC Started ---\n");
+  int16_t acc_data[3];
+  uint8_t aNotifyBuffer[6];
   (void)argument;
-  tBleStatus ret = BLE_STATUS_SUCCESS; // Initialize ret
+  tBleStatus ret = BLE_STATUS_SUCCESS;
+
+  PRINTF("TASK_ACC: Initializing Sensor IO (I2C)...\n");
+  SENSOR_IO_Init(); // <-- ADD THIS LINE. This is the BSP I2C init.
 
   PRINTF("TASK_ACC: Initializing Accelerometer...\n");
-  if (BSP_ACCELERO_Init() != BSP_ERROR_NONE)
+  if (BSP_ACCELERO_Init() != ACCELERO_OK) // This function NOW works
   {
     PRINTF("TASK_ACC: ERROR - Accelerometer Init Failed!\n");
-    while(1); // Halt task
+    Error_Handler(); // Halt task
   }
-  BSP_ACCELERO_LowPower(0); // Make sure accelerator is ON
+
+  // --- REMOVE THE "CRITICAL FIX" BLOCK ---
+  // The BSP_ACCELERO_Init() already set the ODR.
+  // The "CRITICAL FIX" was a good idea but is now redundant
+  // and was fighting the uninitialized BSP.
+  // --- END REMOVED BLOCK ---
+
+  // --- REMOVE THE LowPower CALL ---
+  // BSP_ACCELERO_Init() already sets High Performance mode.
+  // BSP_ACCELERO_LowPower(0);
+  // --- END REMOVED BLOCK ---
+
   PRINTF("TASK_ACC: Accelerometer Initialized OK.\n");
-  osDelay(100); // Initial delay after sensor init
+  osDelay(100);
 
   for(;;)
   {
     if (g_is_connected)
     {
-      // 1. Read Sensor Data
-      BSP_ACCELERO_AccGetXYZ(acc_data); // Use correct function name
-      // PRINTF("TASK_ACC: Read Accel: X=%d, Y=%d, Z=%d\n", acc_data[0], acc_data[1], acc_data[2]);
+        /*
+        // This check is good for debugging but spams the console.
+        // You can re-enable it if you still have problems.
+    	if (SENSOR_IO_IsDeviceReady(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, 3) != HAL_OK) {
+    	    printf("LSM6DSL not responding on I2C!\r\n");
+    	} else {
+    	    printf("LSM6DSL ready.\r\n");
+    	}
+        */
 
-      // 2. Prepare Notification Packet FIRST
+      // --- Status Check (Keep this, it's good practice) ---
+      uint8_t status_reg = SENSOR_IO_Read(LSM6DSL_ACC_GYRO_I2C_ADDRESS_LOW, LSM6DSL_ACC_GYRO_STATUS_REG);
+      if (!(status_reg & LSM6DSL_ACC_GYRO_XLDA_MASK)) // Check if data is NOT ready
+      {
+          PRINTF("TASK_ACC: WARN - Accel data not ready (STATUS=0x%02X), skipping read.\r\n", status_reg);
+          osDelay(10); // Wait a short time before retrying loop
+          continue; // Skip the rest of the loop
+      }
+      // --- End Status Check ---
+
+      // 1. Read Sensor Data
+      BSP_ACCELERO_AccGetXYZ(acc_data);
+      PRINTF("TASK_ACC: Read Accel: X=%d, Y=%d, Z=%d\r\n", acc_data[0], acc_data[1], acc_data[2]);
+
+      // 2. Prepare Notification Packet
+      // Your memcpy method from the last file was also good. This is fine too.
       aNotifyBuffer[0] = (uint8_t)(acc_data[0] & 0x00FF);
       aNotifyBuffer[1] = (uint8_t)((acc_data[0] >> 8) & 0x00FF);
       aNotifyBuffer[2] = (uint8_t)(acc_data[1] & 0x00FF);
@@ -536,49 +582,40 @@ void TASK_ACC(void *argument)
       aNotifyBuffer[4] = (uint8_t)(acc_data[2] & 0x00FF);
       aNotifyBuffer[5] = (uint8_t)((acc_data[2] >> 8) & 0x00FF);
 
-      // Small delay before attempting to send (optional, keep if it helped)
-      osDelay(5);
+      //osDelay(30); // Keep pre-send delay
 
-      // 3. Attempt to Send Notification (with Retry Logic)
-      uint8_t retries = 3; // Try up to 3 times
+      // 3. Attempt to Send Notification (Keep Retry Logic)
+      uint8_t retries = 3;
       while(retries > 0)
       {
           ret = aci_gatt_update_char_value(Acc_Service_Handle,
                                            Acc_Data_Char_Handle,
-                                           0, // offset
-                                           6, // data length
-                                           aNotifyBuffer); // Use the prepared buffer
+                                           0, 6,
+                                           aNotifyBuffer);
 
           if (ret == BLE_STATUS_SUCCESS) {
-              // PRINTF("TASK_ACC: Notification sent OK.\n");
-              break; // Exit retry loop on success
+              break; // Success
           } else if (ret == BLE_STATUS_INSUFFICIENT_RESOURCES || ret == BLE_STATUS_TIMEOUT) {
-              // If buffers full or timeout, wait briefly and retry
               PRINTF("TASK_ACC: Warn - aci_gatt_update_char_value busy (0x%02X), retrying...\n", ret);
               retries--;
-              if (retries > 0) osDelay(10); // Wait 10ms only if retrying again
+              if (retries > 0) osDelay(1);
           } else {
-              // For other errors, break and report failure
               PRINTF("TASK_ACC: ERROR - aci_gatt_update_char_value failed! Status: 0x%02X\n", ret);
-              retries = 0; // Force exit loop
+              retries = 0;
               break;
           }
       }
-      // If retries ran out and still failed, print final error
       if (retries == 0 && ret != BLE_STATUS_SUCCESS) {
            PRINTF("TASK_ACC: ERROR - Failed to send notification after retries (Last Status: 0x%02X)\n", ret);
       }
 
       // 4. Delay until next sample PERIOD
-      // Adjust delay slightly if needed, subtract pre-send delay
-      uint32_t delay_ms = (g_sampling_period_ms > 5) ? (g_sampling_period_ms - 5) : 1;
+      uint32_t delay_ms = (g_sampling_period_ms > 40) ? (g_sampling_period_ms - 40) : 1; // 30 + 10 = 40ms overhead
       osDelay(delay_ms);
-
     }
     else
     {
-      // PRINTF("TASK_ACC: Loop - Not Connected. Waiting...\n");
-      osDelay(1000); // Not connected, sleep longer
+      osDelay(1000);
     }
   }
 }

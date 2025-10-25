@@ -5,22 +5,13 @@
   * @author  MCD Application Team (Modified)
   * @brief   Source file for the BSP Common driver
   ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
 */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
 #include "b_l475e_iot01a1.h"
 #include "stm32l4xx_hal_exti.h"
+#include <stdio.h> // Include for printf
 
 /** @addtogroup BSP
  * @{
@@ -31,8 +22,6 @@
  */
 
 /** @defgroup B_L475E_IOT01A1_LOW_LEVEL B_L475E_IOT01A1 LOW LEVEL
- * @brief This file provides set of firmware functions to manage Leds and push-button
- * available on STM32L4xx-Nucleo Kit from STMicroelectronics.
  * @{
  */
 
@@ -50,7 +39,7 @@ typedef void (* BSP_BUTTON_GPIO_Init) (void);
 static GPIO_TypeDef* BUTTON_PORT[BUTTONn] = {USER_BUTTON_GPIO_PORT};
 static const uint16_t  BUTTON_PIN[BUTTONn]  = {USER_BUTTON_PIN};
 static const IRQn_Type BUTTON_IRQn[BUTTONn] = {USER_BUTTON_EXTI_IRQn};
-EXTI_HandleTypeDef hpb_exti[BUTTONn] = {{.Line = USER_BUTTON_EXTI_LINE}}; // Use correct EXTI line
+EXTI_HandleTypeDef hpb_exti[BUTTONn] = {{.Line = USER_BUTTON_EXTI_LINE}};
 static void BUTTON_USER_GPIO_Init(void); // Prototype for local init function
 
 /* Com */
@@ -58,18 +47,17 @@ static void BUTTON_USER_GPIO_Init(void); // Prototype for local init function
 USART_TypeDef* COM_USART[COMn] = {COM1_UART};
 UART_HandleTypeDef hcom_uart[COMn];
 #if (USE_COM_LOG > 0)
-static COM_TypeDef COM_ActiveLogPort = COM1; // Default to COM1
+static COM_TypeDef COM_ActiveLogPort = COM1;
 #endif
 #if (USE_HAL_UART_REGISTER_CALLBACKS == 1U)
 static uint32_t IsUsart1MspCbValid = 0;
 #endif
-/* Weak definition of UART Init function, needed by BSP_COM_Init */
 __weak HAL_StatusTypeDef MX_USART1_UART_Init(UART_HandleTypeDef* huart);
 #endif /* (USE_BSP_COM_FEATURE > 0) */
 
 /* I2C */
-I2C_HandleTypeDef hI2cHandler; /* Define the I2C handle */
-
+extern I2C_HandleTypeDef hi2c2;
+#define hI2cHandler hi2c2   // simple alias so BSP uses same instance
 /**
  * @}
  */
@@ -77,8 +65,9 @@ I2C_HandleTypeDef hI2cHandler; /* Define the I2C handle */
 /** @defgroup B_L475E_IOT01A1_LOW_LEVEL_Private_FunctionPrototypes B_L475E_IOT01A1 LOW LEVEL Private Function Prototypes
  * @{
  */
-typedef void (* BSP_EXTI_LineCallback) (void); // <-- ENSURE THIS IS HERE
-typedef void (* BSP_BUTTON_GPIO_Init) (void);
+// --- FIX: Add the missing typedef ---
+typedef void (* BSP_EXTI_LineCallback) (void);
+// ------------------------------------
 
 static void BUTTON_USER_EXTI_Callback(void);
 
@@ -105,10 +94,6 @@ static void              I2Cx_Error(I2C_HandleTypeDef *i2c_handler, uint8_t Addr
  * @{
  */
 
-/**
-  * @brief  This method returns the STM32L4xx NUCLEO BSP Driver revision
-  * @retval version: 0xXYZR (8bits for each decimal, R for RC)
-  */
 int32_t BSP_GetVersion(void)
 {
   return (int32_t)__B_L475E_IOT01A1_BSP_VERSION;
@@ -117,101 +102,42 @@ int32_t BSP_GetVersion(void)
 //------------------------------------------------------------------------------
 // LED Functions
 //------------------------------------------------------------------------------
-/**
- * @brief  Configures LED GPIO.
- * @param  Led: Specifies the Led to be configured.
- * @retval BSP status
- */
 int32_t BSP_LED_Init(Led_TypeDef Led)
 {
-  /* Pin is configured in STM32CubeMX */
-  /* This function is now empty but kept for compatibility */
-  // The old logic called a local init function (LED_USER_GPIO_Init)
-  // which might conflict with CubeMX. If CubeMX configures the pin,
-  // this function can remain empty or simply ensure the clock is enabled.
-  LED2_GPIO_CLK_ENABLE(); // Ensure clock is enabled
+  LED2_GPIO_CLK_ENABLE();
   return BSP_ERROR_NONE;
 }
-
-/**
- * @brief  DeInit LEDs.
- * @param  Led: Specifies the Led to be deconfigured.
- * @retval BSP status
- */
 int32_t BSP_LED_DeInit(Led_TypeDef Led)
 {
   GPIO_InitTypeDef  gpio_init_structure;
-
-  /* Turn off LED */
   HAL_GPIO_WritePin(LED_PORT[Led], LED_PIN[Led], GPIO_PIN_RESET);
-  /* DeInit the GPIO_LED pin */
   gpio_init_structure.Pin = LED_PIN[Led];
   HAL_GPIO_DeInit(LED_PORT[Led], gpio_init_structure.Pin);
-  /* Clock disable is generally handled elsewhere or not needed */
-  /* LED2_GPIO_CLK_DISABLE(); */
   return BSP_ERROR_NONE;
 }
-
-/**
- * @brief  Turns selected LED On.
- * @param  Led: Specifies the Led to be set on.
- * @retval BSP status
- */
 int32_t BSP_LED_On(Led_TypeDef Led)
 {
   HAL_GPIO_WritePin(LED_PORT [Led], LED_PIN [Led], GPIO_PIN_SET);
   return BSP_ERROR_NONE;
 }
-
-/**
- * @brief  Turns selected LED Off.
- * @param  Led: Specifies the Led to be set off.
- * @retval BSP status
- */
 int32_t BSP_LED_Off(Led_TypeDef Led)
 {
   HAL_GPIO_WritePin(LED_PORT [Led], LED_PIN [Led], GPIO_PIN_RESET);
   return BSP_ERROR_NONE;
 }
-
-/**
- * @brief  Toggles the selected LED.
- * @param  Led: Specifies the Led to be toggled.
- * @retval BSP status
- */
 int32_t BSP_LED_Toggle(Led_TypeDef Led)
 {
   HAL_GPIO_TogglePin(LED_PORT[Led], LED_PIN[Led]);
   return BSP_ERROR_NONE;
 }
-
-/**
- * @brief  Get the status of the LED.
- * @param  Led: Specifies the Led.
- * @retval LED status (1=On, 0=Off)
- */
 int32_t BSP_LED_GetState(Led_TypeDef Led)
 {
-  /* Note: Pin state is SET (1) when LED is ON */
   return (int32_t)HAL_GPIO_ReadPin (LED_PORT [Led], LED_PIN [Led]);
 }
-
-/**
-  * @brief  Initializes the LED GPIO pin, specific to this BSP version.
-  * @retval None
-  * @note   This function might be redundant if CubeMX initializes the pin.
-  */
 static void LED_USER_GPIO_Init(void) {
-  /* This function should mirror the CubeMX configuration for PB14 */
-  /* Ensure clock is enabled */
   LED2_GPIO_CLK_ENABLE();
-
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  /* Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED2_GPIO_PORT, LED2_PIN, GPIO_PIN_RESET);
-
-  /* Configure GPIO pin : PB14 */
   GPIO_InitStruct.Pin = LED2_PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -223,25 +149,17 @@ static void LED_USER_GPIO_Init(void) {
 //------------------------------------------------------------------------------
 // BUTTON Functions
 //------------------------------------------------------------------------------
-/**
-  * @brief  Configures button GPIO and EXTI Line.
-  * @param  Button: Specifies the Button to be configured.
-  * @param  ButtonMode: Specifies Button mode (GPIO or EXTI).
-  * @retval BSP status
-  */
 int32_t BSP_PB_Init(Button_TypeDef Button, ButtonMode_TypeDef ButtonMode)
 {
   int32_t ret = BSP_ERROR_NONE;
-  static const BSP_EXTI_LineCallback ButtonCallback[BUTTONn] = {BUTTON_USER_EXTI_Callback};
+  static const BSP_EXTI_LineCallback ButtonCallback[BUTTONn] = {BUTTON_USER_EXTI_Callback}; // This line is now valid
   static const uint32_t BSP_BUTTON_PRIO [BUTTONn] = {BSP_BUTTON_USER_IT_PRIORITY};
   static const uint32_t BUTTON_EXTI_LINE[BUTTONn] = {USER_BUTTON_EXTI_LINE};
 
-  /* The GPIO configuration is done in BUTTON_USER_GPIO_Init */
   BUTTON_USER_GPIO_Init(); // Call the specific init function
 
   if (ButtonMode == BUTTON_MODE_EXTI)
   {
-    /* Configure the EXTI line */
     if(HAL_EXTI_GetHandle(&hpb_exti[Button], BUTTON_EXTI_LINE[Button]) != HAL_OK)
     {
       ret = BSP_ERROR_PERIPH_FAILURE;
@@ -252,7 +170,6 @@ int32_t BSP_PB_Init(Button_TypeDef Button, ButtonMode_TypeDef ButtonMode)
     }
     else
     {
-      /* Enable and set Button EXTI Interrupt to the lowest priority */
       HAL_NVIC_SetPriority((BUTTON_IRQn[Button]), BSP_BUTTON_PRIO[Button], 0x00);
       HAL_NVIC_EnableIRQ((BUTTON_IRQn[Button]));
     }
@@ -260,83 +177,36 @@ int32_t BSP_PB_Init(Button_TypeDef Button, ButtonMode_TypeDef ButtonMode)
 
   return ret;
 }
-
-/**
- * @brief  Push Button DeInit.
- * @param  Button: Button to be configured
- * @retval BSP status
- */
 int32_t BSP_PB_DeInit(Button_TypeDef Button)
 {
   GPIO_InitTypeDef gpio_init_structure;
-
   gpio_init_structure.Pin = BUTTON_PIN[Button];
   HAL_NVIC_DisableIRQ((IRQn_Type)(BUTTON_IRQn[Button]));
   HAL_GPIO_DeInit(BUTTON_PORT[Button], gpio_init_structure.Pin);
-  /* Clock disable is generally handled elsewhere */
-  /* USER_BUTTON_GPIO_CLK_DISABLE(); */
   return BSP_ERROR_NONE;
 }
-
-/**
- * @brief  Returns the selected button state.
- * @param  Button: Specifies the Button to be checked.
- * @retval The Button GPIO pin value (BUTTON_PRESSED = 1, BUTTON_RELEASED = 0)
- */
 int32_t BSP_PB_GetState(Button_TypeDef Button)
 {
-  /* Button is pressed when pin is LOW (繋がっている), released when HIGH (floating) */
   return (HAL_GPIO_ReadPin(BUTTON_PORT[Button], BUTTON_PIN[Button]) == GPIO_PIN_RESET) ? BUTTON_PRESSED : BUTTON_RELEASED;
 }
-
-/**
- * @brief  User EXTI line detection callbacks.
- * @retval None
- */
 void BSP_PB_IRQHandler (Button_TypeDef Button)
 {
   HAL_EXTI_IRQHandler( &hpb_exti[Button] );
 }
-
-/**
- * @brief  BSP Push Button callback
- * @param  Button Specifies the pin connected EXTI line
- * @retval None.
- */
 __weak void BSP_PB_Callback(Button_TypeDef Button)
 {
-  /* Prevent unused argument(s) compilation warning */
   UNUSED(Button);
-  /* This function should be implemented by the user application.
-     It is called into this driver when an event on Button is triggered. */
 }
-
-/**
-  * @brief  User EXTI line detection callback.
-  * @retval None
-  */
 static void BUTTON_USER_EXTI_Callback(void)
 {
   BSP_PB_Callback(BUTTON_USER);
 }
-
-/**
-  * @brief  Initializes the Button GPIO pin (PC13), specific to this BSP version.
-  * @retval None
-  * @note   This function should mirror the CubeMX configuration for PC13.
-  */
 static void BUTTON_USER_GPIO_Init(void) {
-  /* Ensure clock is enabled */
-  USER_BUTTON_GPIO_CLK_ENABLE();
-
+	BUS_BSP_BUTTON_GPIO_CLK_ENABLE();
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  /* Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = USER_BUTTON_PIN;
-  // If Mode is EXTI, configure as IT_FALLING or IT_RISING based on requirement
-  // If Mode is GPIO, configure as GPIO_MODE_INPUT
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // Assuming EXTI mode falling edge trigger
-  GPIO_InitStruct.Pull = GPIO_NOPULL; // Or GPIO_PULLUP depending on schematic/needs
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // Use FALLING edge
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_BUTTON_GPIO_PORT, &GPIO_InitStruct);
 }
 
@@ -345,83 +215,41 @@ static void BUTTON_USER_GPIO_Init(void) {
 // COM Functions
 //------------------------------------------------------------------------------
 #if (USE_BSP_COM_FEATURE > 0)
-/**
- * @brief  Configures COM port.
- * @param  COM: Specifies the COM port to be configured.
- * @retval BSP status
- */
 int32_t BSP_COM_Init(COM_TypeDef COM)
 {
   int32_t ret = BSP_ERROR_NONE;
-
-  if(COM >= COMn) /* Check if COM is valid */
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
+  if(COM >= COMn) { ret = BSP_ERROR_WRONG_PARAM; }
   else
   {
      hcom_uart[COM].Instance = COM_USART[COM];
 #if (USE_HAL_UART_REGISTER_CALLBACKS == 0U)
-    /* Init the UART Msp */
-    USART1_MspInit(&hcom_uart[COM]); /* Use specific MSP init */
+    USART1_MspInit(&hcom_uart[COM]);
 #else
     if(IsUsart1MspCbValid == 0U)
-    {
-      if(BSP_COM_RegisterDefaultMspCallbacks(COM) != BSP_ERROR_NONE)
-      {
-        return BSP_ERROR_MSP_FAILURE;
-      }
-    }
+    { if(BSP_COM_RegisterDefaultMspCallbacks(COM) != BSP_ERROR_NONE) { return BSP_ERROR_MSP_FAILURE; } }
 #endif
-    /* Call the CubeMX generated Init function (or HAL_UART_Init if MX function not used) */
-    if (MX_USART1_UART_Init(&hcom_uart[COM]) != HAL_OK)
-    {
-      ret = BSP_ERROR_PERIPH_FAILURE;
-    }
+    if (MX_USART1_UART_Init(&hcom_uart[COM]) != HAL_OK) { ret = BSP_ERROR_PERIPH_FAILURE; }
   }
   return ret;
 }
-
-/**
- * @brief  DeInit COM port.
- * @param  COM: Specifies the COM port to be deconfigured.
- * @retval BSP status
- */
 int32_t BSP_COM_DeInit(COM_TypeDef COM)
 {
   int32_t ret = BSP_ERROR_NONE;
-
-  if(COM >= COMn) /* Check if COM is valid */
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
+  if(COM >= COMn) { ret = BSP_ERROR_WRONG_PARAM; }
   else
   {
-    /* USART configuration */
     hcom_uart[COM].Instance = COM_USART[COM];
-
 #if (USE_HAL_UART_REGISTER_CALLBACKS == 0U)
-      USART1_MspDeInit(&hcom_uart[COM]); /* Use specific MSP deinit */
-#endif /* (USE_HAL_UART_REGISTER_CALLBACKS == 0U) */
-
-    if(HAL_UART_DeInit(&hcom_uart[COM]) != HAL_OK)
-    {
-      ret = BSP_ERROR_PERIPH_FAILURE;
-    }
+      USART1_MspDeInit(&hcom_uart[COM]);
+#endif
+    if(HAL_UART_DeInit(&hcom_uart[COM]) != HAL_OK) { ret = BSP_ERROR_PERIPH_FAILURE; }
   }
   return ret;
 }
-
-/**
- * @brief  Configures COM port. Weak definition.
- * @note   This function is overridden by CubeMX generated function.
- * @param  huart USART handle
- * @retval HAL status
- */
 __weak HAL_StatusTypeDef MX_USART1_UART_Init(UART_HandleTypeDef* huart)
 {
   HAL_StatusTypeDef ret = HAL_OK;
-  huart->Instance = COM1_UART; // USART1
+  huart->Instance = COM1_UART;
   huart->Init.BaudRate = 115200;
   huart->Init.WordLength = UART_WORDLENGTH_8B;
   huart->Init.StopBits = UART_STOPBITS_1;
@@ -431,192 +259,94 @@ __weak HAL_StatusTypeDef MX_USART1_UART_Init(UART_HandleTypeDef* huart)
   huart->Init.OverSampling = UART_OVERSAMPLING_16;
   huart->Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart->AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(huart) != HAL_OK)
-  {
-    ret = HAL_ERROR;
-  }
+  if (HAL_UART_Init(huart) != HAL_OK) { ret = HAL_ERROR; }
   return ret;
 }
-
 #if (USE_HAL_UART_REGISTER_CALLBACKS == 1U)
-/**
- * @brief Register Default USART1 Bus Msp Callbacks
- * @retval BSP status
- */
 int32_t BSP_COM_RegisterDefaultMspCallbacks(COM_TypeDef COM)
 {
   int32_t ret = BSP_ERROR_NONE;
-
-  if(COM >= COMn)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
+  if(COM >= COMn) { ret = BSP_ERROR_WRONG_PARAM; }
   else
   {
     __HAL_UART_RESET_HANDLE_STATE(&hcom_uart[COM]);
-    /* Register default MspInit/MspDeInit Callback */
-    if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPINIT_CB_ID, USART1_MspInit) != HAL_OK)
-    {
-      ret = BSP_ERROR_PERIPH_FAILURE;
-    }
-    else if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPDEINIT_CB_ID, USART1_MspDeInit) != HAL_OK)
-    {
-      ret = BSP_ERROR_PERIPH_FAILURE;
-    }
-    else
-    {
-      IsUsart1MspCbValid = 1U;
-    }
+    if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPINIT_CB_ID, USART1_MspInit) != HAL_OK) { ret = BSP_ERROR_PERIPH_FAILURE; }
+    else if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPDEINIT_CB_ID, USART1_MspDeInit) != HAL_OK) { ret = BSP_ERROR_PERIPH_FAILURE; }
+    else { IsUsart1MspCbValid = 1U; }
   }
   return ret;
 }
-
-/**
- * @brief Register USART1 Bus Msp Callback registering
- * @param Callbacks pointer to USART1 MspInit/MspDeInit callback functions
- * @retval BSP status
- */
 int32_t BSP_COM_RegisterMspCallbacks (COM_TypeDef COM , BSP_COM_Cb_t *Callback)
 {
   int32_t ret = BSP_ERROR_NONE;
-
-  if(COM >= COMn)
-  {
-    ret = BSP_ERROR_WRONG_PARAM;
-  }
+  if(COM >= COMn) { ret = BSP_ERROR_WRONG_PARAM; }
   else
   {
     __HAL_UART_RESET_HANDLE_STATE(&hcom_uart[COM]);
-    /* Register MspInit/MspDeInit Callbacks */
-    if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPINIT_CB_ID, Callback->pMspInitCb) != HAL_OK)
-    {
-      ret = BSP_ERROR_PERIPH_FAILURE;
-    }
-    else if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPDEINIT_CB_ID, Callback->pMspDeInitCb) != HAL_OK)
-    {
-      ret = BSP_ERROR_PERIPH_FAILURE;
-    }
-    else
-    {
-      IsUsart1MspCbValid = 1U;
-    }
+    if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPINIT_CB_ID, Callback->pMspInitCb) != HAL_OK) { ret = BSP_ERROR_PERIPH_FAILURE; }
+    else if(HAL_UART_RegisterCallback(&hcom_uart[COM], HAL_UART_MSPDEINIT_CB_ID, Callback->pMspDeInitCb) != HAL_OK) { ret = BSP_ERROR_PERIPH_FAILURE; }
+    else { IsUsart1MspCbValid = 1U; }
   }
   return ret;
 }
-#endif /* USE_HAL_UART_REGISTER_CALLBACKS */
-
+#endif
 #if (USE_COM_LOG > 0)
-/**
- * @brief  Select the active COM port.
- * @param  COM: Specifies the COM port to be activated.
- * @retval BSP status
- */
 int32_t BSP_COM_SelectLogPort(COM_TypeDef COM)
 {
-  if(COM_ActiveLogPort != COM)
-  {
-    COM_ActiveLogPort = COM;
-  }
+  if(COM_ActiveLogPort != COM) { COM_ActiveLogPort = COM; }
   return BSP_ERROR_NONE;
 }
-
 #ifdef __GNUC__
-/* With GCC, small printf (option LD Linker->Libraries->Small printf
-   set to 'Yes') calls __io_putchar() */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
-
-/**
-  * @brief  Retargets the C library printf function to the USART.
-  * @param  None
-  * @retval None
-  */
+#endif
 PUTCHAR_PROTOTYPE
 {
-  /* Place your implementation of fputc here */
-  /* e.g. write a character to the serial port and Loop until the end of transmission */
   (void)HAL_UART_Transmit(&hcom_uart[COM_ActiveLogPort], (uint8_t *)&ch, 1, COM_POLL_TIMEOUT);
   return ch;
 }
-#endif /* USE_COM_LOG */
-
-/**
- * @brief  Initializes USART1 MSP.
- * @param  huart USART1 handle
- * @retval None
- */
+#endif
 static void USART1_MspInit(UART_HandleTypeDef* uartHandle)
 {
   GPIO_InitTypeDef GPIO_InitStruct;
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-
-  /* Initializes the peripherals clock */
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler(); // Or handle error appropriately
-  }
-
-  /* Enable Peripheral clock */
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) { Error_Handler(); }
   COM1_CLK_ENABLE();
   COM1_TX_GPIO_CLK_ENABLE();
   COM1_RX_GPIO_CLK_ENABLE();
-
-  /**USART1 GPIO Configuration
-  PB6     ------> USART1_TX
-  PB7     ------> USART1_RX
-  */
   GPIO_InitStruct.Pin = COM1_TX_PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = COM1_TX_AF;
   HAL_GPIO_Init(COM1_TX_GPIO_PORT, &GPIO_InitStruct);
-
   GPIO_InitStruct.Pin = COM1_RX_PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL; /* Or GPIO_PULLUP if needed */
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = COM1_RX_AF;
   HAL_GPIO_Init(COM1_RX_GPIO_PORT, &GPIO_InitStruct);
 }
-
-/**
- * @brief  DeInitializes USART1 MSP.
- * @param  huart USART1 handle
- * @retval None
- */
 static void USART1_MspDeInit(UART_HandleTypeDef* uartHandle)
 {
-  /* Peripheral clock disable */
   COM1_CLK_DISABLE();
-
-  /**USART1 GPIO Configuration
-  PB6     ------> USART1_TX
-  PB7     ------> USART1_RX
-  */
   HAL_GPIO_DeInit(COM1_TX_GPIO_PORT, COM1_TX_PIN);
   HAL_GPIO_DeInit(COM1_RX_GPIO_PORT, COM1_RX_PIN);
-
-  /* Disable GPIO Clocks - might be shared, handle carefully */
-  /* COM1_TX_GPIO_CLK_DISABLE(); */
-  /* COM1_RX_GPIO_CLK_DISABLE(); */
 }
-
 #endif /* (USE_BSP_COM_FEATURE > 0) */
 
 
 //------------------------------------------------------------------------------
-// BUS Operations (I2C for Sensors) - Added from reference
+// BUS Operations (I2C for Sensors) - Copied from Reference File
 //------------------------------------------------------------------------------
 
 /******************************* I2C Routines *********************************/
 /**
   * @brief  Initializes I2C MSP.
-  * @param  i2c_handler  I2C handler (hI2cHandler)
+  * @param  i2c_handler  I2C handler
   * @retval None
   */
 static void I2Cx_MspInit(I2C_HandleTypeDef *i2c_handler)
@@ -639,7 +369,7 @@ static void I2Cx_MspInit(I2C_HandleTypeDef *i2c_handler)
     HAL_GPIO_Init(BUS_I2C2_SCL_GPIO_PORT, &gpio_init_structure);
 
     gpio_init_structure.Alternate = BUS_I2C2_SDA_GPIO_AF; // Use AF for SDA
-    HAL_GPIO_Init(BUS_I2C2_SDA_GPIO_PORT, &gpio_init_structure); // Port might be same or different
+    HAL_GPIO_Init(BUS_I2C2_SDA_GPIO_PORT, &gpio_init_structure);
 
     /* Configure the I2C peripheral */
     /* Enable I2C clock */
@@ -652,16 +382,16 @@ static void I2Cx_MspInit(I2C_HandleTypeDef *i2c_handler)
     BUS_I2C2_RELEASE_RESET();
 
     /* Enable and set I2Cx Interrupt to a lower priority */
-    HAL_NVIC_SetPriority(BUS_I2C2_EV_IRQn, 0x0F, 0);
+    HAL_NVIC_SetPriority(BUS_I2C2_EV_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(BUS_I2C2_EV_IRQn);
-    HAL_NVIC_SetPriority(BUS_I2C2_ER_IRQn, 0x0F, 0);
+    HAL_NVIC_SetPriority(BUS_I2C2_ER_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(BUS_I2C2_ER_IRQn);
   }
 }
 
 /**
   * @brief  DeInitializes I2C MSP.
-  * @param  i2c_handler  I2C handler (hI2cHandler)
+  * @param  i2c_handler  I2C handler
   * @retval None
   */
 static void I2Cx_MspDeInit(I2C_HandleTypeDef *i2c_handler)
@@ -676,10 +406,6 @@ static void I2Cx_MspDeInit(I2C_HandleTypeDef *i2c_handler)
     HAL_GPIO_DeInit(BUS_I2C2_SCL_GPIO_PORT, BUS_I2C2_SCL_GPIO_PIN);
     HAL_GPIO_DeInit(BUS_I2C2_SDA_GPIO_PORT, BUS_I2C2_SDA_GPIO_PIN);
 
-    /* Disable GPIO clock - Handle with care if shared */
-    /* BUS_I2C2_SCL_GPIO_CLK_DISABLE(); */
-    /* BUS_I2C2_SDA_GPIO_CLK_DISABLE(); */
-
     /* Disable I2C clock */
     BUS_I2C2_CLK_DISABLE();
   }
@@ -687,7 +413,7 @@ static void I2Cx_MspDeInit(I2C_HandleTypeDef *i2c_handler)
 
 /**
   * @brief  Initializes I2C HAL.
-  * @param  i2c_handler  I2C handler (hI2cHandler)
+  * @param  i2c_handler  I2C handler
   * @retval None
   */
 static void I2Cx_Init(I2C_HandleTypeDef *i2c_handler)
@@ -708,36 +434,35 @@ static void I2Cx_Init(I2C_HandleTypeDef *i2c_handler)
     I2Cx_MspInit(i2c_handler);
     if (HAL_I2C_Init(i2c_handler) != HAL_OK)
     {
-       Error_Handler(); // Or handle error appropriately
+       Error_Handler();
     }
 
     /** Configure Analogue filter */
     if (HAL_I2CEx_ConfigAnalogFilter(i2c_handler, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
     {
-       Error_Handler(); // Or handle error appropriately
+       Error_Handler();
     }
 
     /** Configure Digital filter */
     if (HAL_I2CEx_ConfigDigitalFilter(i2c_handler, 0) != HAL_OK)
     {
-      Error_Handler(); // Or handle error appropriately
+      Error_Handler();
     }
   }
 }
 
 /**
   * @brief  DeInitializes I2C HAL.
-  * @param  i2c_handler  I2C handler (hI2cHandler)
+  * @param  i2c_handler  I2C handler
   * @retval None
   */
 static void I2Cx_DeInit(I2C_HandleTypeDef *i2c_handler)
 {
    if (HAL_I2C_GetState(i2c_handler) != HAL_I2C_STATE_RESET)
    {
-     /* DeInit the I2C */
      if (HAL_I2C_DeInit(i2c_handler) != HAL_OK)
      {
-         Error_Handler(); // Or handle error appropriately
+         Error_Handler();
      }
      I2Cx_MspDeInit(i2c_handler);
    }
@@ -756,12 +481,13 @@ static void I2Cx_DeInit(I2C_HandleTypeDef *i2c_handler)
 static HAL_StatusTypeDef I2Cx_ReadMultiple(I2C_HandleTypeDef *i2c_handler, uint8_t Addr, uint16_t Reg, uint16_t MemAddressSize, uint8_t *Buffer, uint16_t Length)
 {
   HAL_StatusTypeDef status = HAL_OK;
-
-  status = HAL_I2C_Mem_Read(i2c_handler, Addr, Reg, MemAddressSize, Buffer, Length, BUS_I2C2_TIMEOUT_MAX);
+  // Use increased timeout for robustness
+  status = HAL_I2C_Mem_Read(i2c_handler, Addr, Reg, MemAddressSize, Buffer, Length, 5000);
 
   /* Check the communication status */
   if(status != HAL_OK)
   {
+    printf("I2Cx_ReadMultiple: HAL_I2C_Mem_Read failed with status %d\r\n", status);
     /* I2C error occurred */
     I2Cx_Error(i2c_handler, Addr);
   }
@@ -781,12 +507,13 @@ static HAL_StatusTypeDef I2Cx_ReadMultiple(I2C_HandleTypeDef *i2c_handler, uint8
 static HAL_StatusTypeDef I2Cx_WriteMultiple(I2C_HandleTypeDef *i2c_handler, uint8_t Addr, uint16_t Reg, uint16_t MemAddressSize, uint8_t *Buffer, uint16_t Length)
 {
   HAL_StatusTypeDef status = HAL_OK;
-
-  status = HAL_I2C_Mem_Write(i2c_handler, Addr, Reg, MemAddressSize, Buffer, Length, BUS_I2C2_TIMEOUT_MAX);
+  // Use increased timeout for robustness
+  status = HAL_I2C_Mem_Write(i2c_handler, Addr, Reg, MemAddressSize, Buffer, Length, 5000);
 
   /* Check the communication status */
   if(status != HAL_OK)
   {
+    printf("I2Cx_WriteMultiple: HAL_I2C_Mem_Write failed with status %d\r\n", status);
     /* Re-Initialize the I2C Bus */
     I2Cx_Error(i2c_handler, Addr);
   }
@@ -814,18 +541,18 @@ static HAL_StatusTypeDef I2Cx_IsDeviceReady(I2C_HandleTypeDef *i2c_handler, uint
   */
 static void I2Cx_Error(I2C_HandleTypeDef *i2c_handler, uint8_t Addr)
 {
+  printf("!!! I2C Error Occurred for Addr 0x%02X !!!\r\n", Addr);
   /* De-initialize the I2C communication bus */
   if (HAL_I2C_DeInit(i2c_handler) != HAL_OK)
   {
-    Error_Handler(); // Or handle error appropriately
+    Error_Handler();
   }
-
   /* Re-Initialize the I2C communication bus */
   I2Cx_Init(i2c_handler);
 }
 
 //------------------------------------------------------------------------------
-// LINK Operations (Sensor IO) - Added from reference
+// LINK Operations (Sensor IO) - Copied from Reference File
 //------------------------------------------------------------------------------
 
 /**
@@ -867,7 +594,16 @@ void SENSOR_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value)
 uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg)
 {
   uint8_t read_value = 0;
-  I2Cx_ReadMultiple(&hI2cHandler, Addr, Reg, I2C_MEMADD_SIZE_8BIT, &read_value, 1);
+  HAL_I2C_StateTypeDef state = HAL_I2C_GetState(&hI2cHandler);
+  if (state != HAL_I2C_STATE_READY) {
+     printf("SENSOR_IO_Read: I2C State not READY (%d) before read\r\n", state);
+  }
+
+  if (I2Cx_ReadMultiple(&hI2cHandler, Addr, Reg, I2C_MEMADD_SIZE_8BIT, &read_value, 1) != HAL_OK)
+  {
+      printf("!!! SENSOR_IO_Read: I2Cx_ReadMultiple failed (Addr 0x%02X, Reg 0x%02X) !!!\r\n", Addr, Reg);
+      read_value = 0xFF; // Indicate read error
+  }
   return read_value;
 }
 
@@ -877,13 +613,12 @@ uint8_t SENSOR_IO_Read(uint8_t Addr, uint8_t Reg)
   * @param  Reg     The target register address to read
   * @param  Buffer  Pointer to data buffer
   * @param  Length  Length of the data
-  * @retval HAL status
+  * @retval 0 if success, non-zero if failure (matches lsm6dsl.h)
   */
 uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length)
 {
- /* For LSM6DSL, ST requires the MSB of Reg to be set for multi-byte read */
- // Change the return value check here:
- if(I2Cx_ReadMultiple(&hI2cHandler, Addr, (uint16_t)(Reg | 0x80), I2C_MEMADD_SIZE_8BIT, Buffer, Length) != HAL_OK)
+ /* NOTE: Removed (Reg | 0x80) as it was causing I2C failures. */
+ if(I2Cx_ReadMultiple(&hI2cHandler, Addr, (uint16_t)Reg, I2C_MEMADD_SIZE_8BIT, Buffer, Length) != HAL_OK)
  {
    return 1; // Indicate error
  }
@@ -900,19 +635,18 @@ uint16_t SENSOR_IO_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint
   */
 void SENSOR_IO_WriteMultiple(uint8_t Addr, uint8_t Reg, uint8_t *Buffer, uint16_t Length)
 {
-  /* For LSM6DSL, ST requires the MSB of Reg to be set for multi-byte write */
-  I2Cx_WriteMultiple(&hI2cHandler, Addr, (uint16_t)(Reg | 0x80), I2C_MEMADD_SIZE_8BIT, Buffer, Length);
+  /* NOTE: Removed (Reg | 0x80) as it was causing I2C failures. */
+  I2Cx_WriteMultiple(&hI2cHandler, Addr, (uint16_t)Reg, I2C_MEMADD_SIZE_8BIT, Buffer, Length);
 }
 
 /**
   * @brief  Checks if target device is ready for communication.
-  * @param  DevAddress  Target device address (I2C 7-bit)
+  * @param  DevAddress  Target device address (I2C 8-bit)
   * @param  Trials      Number of trials
   * @retval HAL status
   */
 HAL_StatusTypeDef SENSOR_IO_IsDeviceReady(uint16_t DevAddress, uint32_t Trials)
 {
-  /* Note: DevAddress must be the 7-bit I2C address left-shifted by 1 (standard HAL format) */
   return I2Cx_IsDeviceReady(&hI2cHandler, DevAddress, Trials);
 }
 
@@ -927,7 +661,7 @@ void SENSOR_IO_Delay(uint32_t Delay)
 }
 
 
-/* NOTE: NFC IO functions are omitted as they were not mentioned in linker errors */
+/* ... (NFC functions - omitted) ... */
 
 
 /**
