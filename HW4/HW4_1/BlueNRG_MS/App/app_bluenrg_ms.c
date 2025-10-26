@@ -584,7 +584,10 @@ void TASK_ACC(void *argument)
 
       //osDelay(30); // Keep pre-send delay
 
+      ret = aci_gatt_update_char_value(Acc_Service_Handle, Acc_Data_Char_Handle, 0, 6, aNotifyBuffer);
+
       // 3. Attempt to Send Notification (Keep Retry Logic)
+      /*
       uint8_t retries = 3;
       while(retries > 0)
       {
@@ -608,6 +611,7 @@ void TASK_ACC(void *argument)
       if (retries == 0 && ret != BLE_STATUS_SUCCESS) {
            PRINTF("TASK_ACC: ERROR - Failed to send notification after retries (Last Status: 0x%02X)\n", ret);
       }
+      */
 
       // 4. Delay until next sample PERIOD
       uint32_t delay_ms = (g_sampling_period_ms > 40) ? (g_sampling_period_ms - 40) : 1; // 30 + 10 = 40ms overhead
