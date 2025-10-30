@@ -62,12 +62,12 @@ async def user_input_loop(client, freq_char):
 
             # --- Process the new frequency ---
             try:
-                frequency_hz = int(user_input)
+                frequency_hz = float(user_input)
                 
                 # Check if frequency is within the safe range
-                if not (1 <= frequency_hz <= 20):
-                    print(f"Error: Frequency {frequency_hz}Hz is outside the safe range (1-20Hz).")
-                    print("Please enter a value between 1 and 20.")
+                if not ( 0.2 <= frequency_hz <= 2):
+                    print(f"Error: Frequency {frequency_hz}Hz is outside the safe range (0.2~2Hz).")
+                    print("Please enter a value between 0.2 and 2.")
                     continue # Ask for input again
 
                 # Calculate and pack the new period
